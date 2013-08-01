@@ -1,0 +1,134 @@
+<?php
+
+/**
+ * Implements hook_help().
+ */
+function bot_forward_help($path, $arg) {
+  switch ($path) {
+    case 'irc:features':
+      return array(t('Say'));
+    case 'irc:features#say':
+      return t('Bot can speak using "BOTNAME: say MESSAGE" For example: "BOTNAME: say I feel awesome today !"');
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function bot_forward_menu() {
+  $items['admin/config/bot/forward'] = array(
+    'access arguments'  => array('administer bot'),
+    'description'       => 'Configure forwarding settings.',
+    'page callback'     => 'drupal_get_form',
+    'page arguments'    => array('bot_forward_settings'),
+    'title'             => 'Bot Forward',
+  );
+
+  return $items;
+}
+
+/**
+ * Configures forward settings.
+ */
+function bot_forward_settings() {
+  $settings = variable_get('bot_forward_settings', array());
+  $settings += array(
+    'port' => 6668,
+    'karma' => array(
+      'positive' => '',
+      'negative' => '',
+    ),
+  );
+
+  $form['bot_forward_settings'] = array(
+    '#tree' => TRUE,
+    '#type' => 'fieldset',
+    '#title' => 'Settings',
+  );
+  $form['bot_forward_settings']['port'] = array(
+    '#default_value' => $settings['port'],
+    '#description'   => t('Binding port.'),
+    '#title'         => t('Port'),
+    '#type'          => 'textfield',
+  );
+  $form['bot_forward_settings']['karma'] = array(
+    '#tree' => TRUE,
+    '#type' => 'fieldset',
+    '#title' => 'Karma',
+    '#description' => t('Sentences to use on karma attributions.')
+  );
+  $form['bot_forward_settings']['karma']['positive'] = array(
+    '#default_value' => $settings['karma']['positive'],
+    '#description'   => t('Positive karma attribution. One sentence per line. Use !nick for user nickname.'),
+    '#title'         => t('Karma positive'),
+    '#type'          => 'textarea',
+  );
+  $form['bot_forward_settings']['karma']['negative'] = array(
+    '#default_value' => $settings['karma']['negative'],
+    '#description'   => t('Negative karma attribution. One sentence per line. Use !nick for user nickname.'),
+    '#title'         => t('Karma positive'),
+    '#type'          => 'textarea',
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Listen and forward message from the channel.
+ *
+ * @param $data
+ *   The regular $data object prepared by the IRC library.
+ * @param $from_query
+ *   Boolean; whether this was a queried request.
+ */
+function bot_forward_irc_msg_channel($data, $from_query = FALSE) {
+  $to = $from_query ? $data->nick : $data->channel;
+  $addressed = bot_name_regexp();
+  $settings = variable_get('bot_forward_settings', array());
+  $message = NULL;
+
+  if (preg_match("/^($addressed)?(.*?)(\+\+|--)$/", $data->message, $matches)) {
+    // Karma
+    $term = trim(drupal_strtolower($matches[3])); // always store it lowercase.
+    if (drupal_strlen($term) < 3 || drupal_strlen($term) > 15) { return; }
+
+    if (drupal_strtolower($data->nick) == $term) {
+      // a user has tried to karma themselves.
+      return;
+    }
+
+    $karma = ($matches[4] == '++') ? 'positive' : 'negative';
+    if (!empty($settings['karma'][$karma])) {
+      // Choose an appropriate sentence.
+      $message = bot_randomized_choice(array('!nick' => $term), $settings['karma'][$karma]);
+    }
+  }
+  elseif (preg_match("/^($addressed)say\s+(.*)$/i", $data->message, $matches)) {
+    // Say
+
+    // if bot_factoid.module is enabled, we'll check to see if this could be about a factoid.
+    // if it is, we'll let bot_factoid handle it and skip over this message's processing here.
+    // @todo ideally, this would be smoother with http://drupal.org/node/218595.
+    if (module_exists('bot_factoid') && drupal_substr($matches[3], 0, 5) == 'about' && $factoid = bot_factoid_load(drupal_substr($matches[4], 6))) {
+      return; // we're just not gonna do anything with this particular message cos bot_factoid will gladly take over the response.
+    }
+  
+    // Copy the plain text message.
+    $message = $matches[3];
+  }
+
+  if (!empty($message)) {
+    // We have a message to forward.
+    if (!empty($settings['port'])) {
+      try {
+        $context = new ZMQContext();
+        $socket = $context->getSocket(ZMQ::SOCKET_PUB, 'bot_forward');
+        $socket->bind("tcp://*:" . $settings['port']);
+        $socket->send($message);
+      }
+      catch(Exception $e) {
+
+      }
+    }
+  }
+}

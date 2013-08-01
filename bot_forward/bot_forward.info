@@ -1,0 +1,5 @@
+name = Bot Forward
+package = Bot
+description = "Publish bot's features to an external host."
+configure = admin/config/bot/forward
+core = 7.x
