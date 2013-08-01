@@ -14,10 +14,10 @@ Don't forget to download the submodules to get the whole the projet. You have tw
 $ git clone https://github.com/amateescu/speakly.git speakly
 $ cd speakly
 $ git submodule update --init
-``
+```
 
 Or
 
 ```
 $ git clone https://github.com/amateescu/speakly.git speakly --recursive
-``
+```
