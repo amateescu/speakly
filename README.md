@@ -8,7 +8,7 @@ Just a fun project that uses a large number of technologies to achieve simple th
 Install
 =====================
 
-Don't forget to download the submodules to get the whole projet. You have two options for doing it:
+Don't forget to download the submodules to get the whole project. You have two options for doing that:
 
 ```
 $ git clone https://github.com/amateescu/speakly.git speakly
