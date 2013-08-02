@@ -3,7 +3,7 @@ import subprocess
 import sys
 import zmq
 
-gyro = os.path.join(os.path.abspath(sys.path[0]), '../gyro/gyro')
+gyro = os.path.join(os.path.abspath(sys.path[0]), '../gyro/gyro.lua')
 textToSpeech = os.path.join(os.path.abspath(sys.path[0]), '../tts/GoogleTextToSpeech.py')
 
 context = zmq.Context()
@@ -14,5 +14,5 @@ sock.connect(sys.argv[1])
 
 while True:
     message = sock.recv()
-    subprocess.check_call([ gyro, '5' ])
+    subprocess.check_call([ 'sudo', gyro, '5' ])
     subprocess.check_call([ 'python', textToSpeech, '-l', 'en', '-s', message, '-p'])
