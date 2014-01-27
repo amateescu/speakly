@@ -26,9 +26,13 @@ Packages needed
 =====================
 
 PHP
+```
 sudo apt-get install libzmq-dev php-pear php5-dev
 sudo pear channel-discover pear.zero.mq
 sudo pecl install pear.zero.mq/zmq-beta
+```
 
 Python
+```
 sudo apt-get install libzmq-dev python-zmq
+```
